@@ -371,25 +371,30 @@ export default function App() {
       const fetchedProducts = []
       for (let i = 1; i <= count; i++) {
         const item = await escrowContract.items(i)
-        // 삭제된(Inactive) 상품은 화면에서 숨김 처리
+
         if (Number(item.state) !== 3) {
+          // [수정 포인트] ipfsHash에서 이름 추출하기
+          // 예: "QmFakeCID_아이폰_12345" -> "_"로 잘라서 두 번째 값("아이폰") 가져오기
+          const parts = item.ipfsHash.split('_')
+          const productName = parts.length > 1 ? parts[1] : '알 수 없는 상품'
+
           fetchedProducts.push({
             id: Number(item.id),
+            name: productName, // 추출한 이름을 객체에 추가!
             seller: item.seller,
             buyer: item.buyer,
-            price: ethers.formatEther(item.price), // Wei를 ETH로 변환
+            price: ethers.formatEther(item.price),
             ipfsHash: item.ipfsHash,
             state: Number(item.state),
             lockedTime: Number(item.lockedTime),
           })
         }
       }
-      setProducts(fetchedProducts.reverse()) // 최신순 정렬
+      setProducts(fetchedProducts.reverse())
     } catch (err) {
       console.error('데이터 로드 실패:', err)
     }
   }
-
   // 가상의 IPFS 업로드 함수 (실제 포트폴리오에서는 Pinata API 연동 필요)
   const uploadToIPFS = async (file, name) => {
     console.log('IPFS에 파일 업로드 중...', file)
@@ -530,7 +535,9 @@ export default function App() {
           <div key={product.id} style={styles.productCard}>
             <div style={styles.productImage}>🖼️</div>
             <div style={styles.productInfo}>
-              <h3 style={styles.productName}>상품 ID: {product.id}</h3>
+              <h3 style={styles.productName}>
+                {product.name} (ID: {product.id})
+              </h3>
               <p style={styles.productPrice}>{product.price} ETH</p>
               <div style={styles.statusBadge(product.state)}>
                 {STATUS_LABELS[product.state]}

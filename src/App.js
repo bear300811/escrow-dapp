@@ -1,79 +1,45 @@
 import React, { useState, useEffect } from 'react'
 import { ethers } from 'ethers'
+import axios from 'axios'
+import './App.css' // CSS 파일 연결!
 
-// 전달받은 실제 컨트랙트 주소 및 ABI
-const CONTRACT_ADDRESS = '0xcc7240d71c588Ba4907a1ad76fe21203fDb18221'
+// Pinata 가입 후 프로필 -> API Keys에서 발급받은 JWT 토큰을 입력합니다.
+const PINATA_JWT = 'YOUR_PINATA_JWT_TOKEN_HERE'
+
+// (uploadToIPFS 함수는 기존 코드와 동일)
+const uploadToIPFS = async (file, name) => {
+  if (!file) return `QmFakeCID_${name}_${new Date().getTime()}`
+  try {
+    console.log('실제 IPFS(Pinata)에 파일 업로드 중...')
+    const formData = new FormData()
+    formData.append('file', file)
+    const metadata = JSON.stringify({ name: `${name}_${new Date().getTime()}` })
+    formData.append('pinataMetadata', metadata)
+    const options = JSON.stringify({ cidVersion: 0 })
+    formData.append('pinataOptions', options)
+
+    const response = await axios.post(
+      'https://api.pinata.cloud/pinning/pinFileToIPFS',
+      formData,
+      {
+        headers: {
+          'Content-Type': `multipart/form-data; boundary=${formData._boundary}`,
+          Authorization: `Bearer ${PINATA_JWT}`,
+        },
+      },
+    )
+    const ipfsHash = response.data.IpfsHash
+    console.log('IPFS 업로드 성공! CID:', ipfsHash)
+    return `${ipfsHash}_${name}`
+  } catch (error) {
+    console.error('Pinata IPFS 업로드 실패:', error)
+    throw new Error('IPFS 업로드에 실패했습니다.')
+  }
+}
+
+const CONTRACT_ADDRESS = '0x15199824188fCC02725c2dC3c32eF3eFF4b2DC63'
+
 const CONTRACT_ABI = [
-  {
-    inputs: [
-      {
-        internalType: 'uint256',
-        name: '_itemId',
-        type: 'uint256',
-      },
-    ],
-    name: 'autoConfirm',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [
-      {
-        internalType: 'uint256',
-        name: '_itemId',
-        type: 'uint256',
-      },
-    ],
-    name: 'confirmReceipt',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [
-      {
-        internalType: 'uint256',
-        name: '_price',
-        type: 'uint256',
-      },
-      {
-        internalType: 'string',
-        name: '_ipfsHash',
-        type: 'string',
-      },
-    ],
-    name: 'createItem',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [
-      {
-        internalType: 'uint256',
-        name: '_itemId',
-        type: 'uint256',
-      },
-    ],
-    name: 'deleteItem',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [
-      {
-        internalType: 'uint256',
-        name: '_itemId',
-        type: 'uint256',
-      },
-    ],
-    name: 'deposit',
-    outputs: [],
-    stateMutability: 'payable',
-    type: 'function',
-  },
   {
     anonymous: false,
     inputs: [
@@ -92,29 +58,6 @@ const CONTRACT_ABI = [
     ],
     name: 'DisputeRaised',
     type: 'event',
-  },
-  {
-    inputs: [
-      {
-        internalType: 'uint256',
-        name: '_itemId',
-        type: 'uint256',
-      },
-      {
-        internalType: 'uint256',
-        name: '_newPrice',
-        type: 'uint256',
-      },
-      {
-        internalType: 'string',
-        name: '_newIpfsHash',
-        type: 'string',
-      },
-    ],
-    name: 'editItem',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
   },
   {
     anonymous: false,
@@ -236,19 +179,6 @@ const CONTRACT_ABI = [
     type: 'event',
   },
   {
-    inputs: [
-      {
-        internalType: 'uint256',
-        name: '_itemId',
-        type: 'uint256',
-      },
-    ],
-    name: 'raiseDispute',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
     inputs: [],
     name: 'AUTO_CONFIRM_TIME',
     outputs: [
@@ -259,6 +189,99 @@ const CONTRACT_ABI = [
       },
     ],
     stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [
+      {
+        internalType: 'uint256',
+        name: '_itemId',
+        type: 'uint256',
+      },
+    ],
+    name: 'autoConfirm',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      {
+        internalType: 'uint256',
+        name: '_itemId',
+        type: 'uint256',
+      },
+    ],
+    name: 'confirmReceipt',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      {
+        internalType: 'uint256',
+        name: '_price',
+        type: 'uint256',
+      },
+      {
+        internalType: 'string',
+        name: '_ipfsHash',
+        type: 'string',
+      },
+    ],
+    name: 'createItem',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      {
+        internalType: 'uint256',
+        name: '_itemId',
+        type: 'uint256',
+      },
+    ],
+    name: 'deleteItem',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      {
+        internalType: 'uint256',
+        name: '_itemId',
+        type: 'uint256',
+      },
+    ],
+    name: 'deposit',
+    outputs: [],
+    stateMutability: 'payable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      {
+        internalType: 'uint256',
+        name: '_itemId',
+        type: 'uint256',
+      },
+      {
+        internalType: 'uint256',
+        name: '_newPrice',
+        type: 'uint256',
+      },
+      {
+        internalType: 'string',
+        name: '_newIpfsHash',
+        type: 'string',
+      },
+    ],
+    name: 'editItem',
+    outputs: [],
+    stateMutability: 'nonpayable',
     type: 'function',
   },
   {
@@ -323,25 +346,35 @@ const CONTRACT_ABI = [
     stateMutability: 'view',
     type: 'function',
   },
+  {
+    inputs: [
+      {
+        internalType: 'uint256',
+        name: '_itemId',
+        type: 'uint256',
+      },
+    ],
+    name: 'raiseDispute',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
 ]
 
-// 상태(State) 매핑용 배열 (0: Created, 1: Locked, 2: Released, 3: Inactive, 4: Disputed)
 const STATUS_LABELS = ['판매중', '예치완료', '거래완료', '삭제됨', '분쟁중']
 
 export default function App() {
   const [account, setAccount] = useState('')
   const [contract, setContract] = useState(null)
   const [products, setProducts] = useState([])
-
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingId, setEditingId] = useState(null) // 수정 모드 판별용
+  const [editingId, setEditingId] = useState(null)
   const [formData, setFormData] = useState({
     name: '',
     price: '',
     imageFile: null,
   })
 
-  // 지갑 연결 및 컨트랙트 초기화
   useEffect(() => {
     const init = async () => {
       if (window.ethereum) {
@@ -364,23 +397,18 @@ export default function App() {
     init()
   }, [])
 
-  // 블록체인에서 상품 목록 불러오기
   const fetchItems = async (escrowContract) => {
     try {
       const count = await escrowContract.itemCount()
       const fetchedProducts = []
       for (let i = 1; i <= count; i++) {
         const item = await escrowContract.items(i)
-
         if (Number(item.state) !== 3) {
-          // [수정 포인트] ipfsHash에서 이름 추출하기
-          // 예: "QmFakeCID_아이폰_12345" -> "_"로 잘라서 두 번째 값("아이폰") 가져오기
           const parts = item.ipfsHash.split('_')
           const productName = parts.length > 1 ? parts[1] : '알 수 없는 상품'
-
           fetchedProducts.push({
             id: Number(item.id),
-            name: productName, // 추출한 이름을 객체에 추가!
+            name: productName,
             seller: item.seller,
             buyer: item.buyer,
             price: ethers.formatEther(item.price),
@@ -395,108 +423,79 @@ export default function App() {
       console.error('데이터 로드 실패:', err)
     }
   }
-  // 가상의 IPFS 업로드 함수 (실제 포트폴리오에서는 Pinata API 연동 필요)
-  const uploadToIPFS = async (file, name) => {
-    console.log('IPFS에 파일 업로드 중...', file)
-    // 실제 환경: FormData를 만들어 Pinata API에 전송 후 CID 반환
-    return `QmFakeCID_${name}_${new Date().getTime()}` // 더미 CID
-  }
 
-  // 1, 2, 8. 상품 등록 및 3. 수정 핸들러 통합
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!formData.name || !formData.price)
       return alert('필수 항목을 입력해주세요.')
-
     try {
-      // 8. IPFS 이미지 및 메타데이터 업로드 처리
       const ipfsHash = await uploadToIPFS(formData.imageFile, formData.name)
       const priceInWei = ethers.parseEther(formData.price)
 
       if (editingId) {
-        // 3. 상품 수정 (editItem 호출)
         const tx = await contract.editItem(editingId, priceInWei, ipfsHash)
         await tx.wait()
         alert('상품이 수정되었습니다.')
       } else {
-        // 1, 2. 상품 등록 (createItem 호출)
         const tx = await contract.createItem(priceInWei, ipfsHash)
         await tx.wait()
         alert('스마트 컨트랙트에 상품이 등록되었습니다.')
       }
-
       closeModal()
-      fetchItems(contract) // 목록 새로고침
+      fetchItems(contract)
     } catch (err) {
       console.error(err)
       alert('트랜잭션 실패')
     }
   }
 
-  // 4. 상품 삭제 (상태 비활성화)
   const handleDelete = async (id) => {
     if (!window.confirm('정말 삭제하시겠습니까?')) return
     try {
       const tx = await contract.deleteItem(id)
       await tx.wait()
-      alert('상품이 삭제되었습니다.')
       fetchItems(contract)
     } catch (err) {
-      alert('삭제 실패 (판매자만 가능합니다)')
+      alert('삭제 실패')
     }
   }
 
-  // 5. 대금 예치 (구매자)
   const handleDeposit = async (id, price) => {
     try {
       const priceInWei = ethers.parseEther(price.toString())
       const tx = await contract.deposit(id, { value: priceInWei })
       await tx.wait()
-      alert('대금이 에스크로에 예치되었습니다.')
       fetchItems(contract)
     } catch (err) {
       alert('예치 실패')
     }
   }
 
-  // 구매 확정 (구매자)
   const handleConfirm = async (id) => {
     try {
       const tx = await contract.confirmReceipt(id)
       await tx.wait()
-      alert('구매가 확정되었습니다.')
       fetchItems(contract)
     } catch (err) {
       alert('확정 실패')
     }
   }
 
-  // 6. 판매자의 자동 대금 청구 (일정 시간 경과 후)
   const handleAutoConfirm = async (id) => {
     try {
       const tx = await contract.autoConfirm(id)
       await tx.wait()
-      alert('자동 확정 처리되어 대금이 입금되었습니다.')
       fetchItems(contract)
     } catch (err) {
-      alert(
-        '자동 확정 실패: 아직 설정된 시간이 지나지 않았거나 분쟁 상태입니다.',
-      )
+      alert('자동 확정 실패')
     }
   }
 
-  // 7. 이의 제기 (구매자)
   const handleDispute = async (id) => {
-    if (
-      !window.confirm(
-        '상품에 문제가 있습니까? 관리자 개입 및 거래가 중단됩니다.',
-      )
-    )
-      return
+    if (!window.confirm('분쟁 상태로 전환하시겠습니까?')) return
     try {
       const tx = await contract.raiseDispute(id)
       await tx.wait()
-      alert('분쟁 상태로 전환되었습니다.')
       fetchItems(contract)
     } catch (err) {
       alert('이의 제기 실패')
@@ -505,11 +504,7 @@ export default function App() {
 
   const openEditModal = (product) => {
     setEditingId(product.id)
-    setFormData({
-      name: 'IPFS에서 불러온 이름',
-      price: product.price,
-      imageFile: null,
-    })
+    setFormData({ name: product.name, price: product.price, imageFile: null })
     setIsModalOpen(true)
   }
 
@@ -519,109 +514,139 @@ export default function App() {
     setFormData({ name: '', price: '', imageFile: null })
   }
 
+  // 상태값에 따른 배지 색상 클래스 반환
+  const getStatusClass = (state) => {
+    if (state === 0) return 'status-0'
+    if (state === 1) return 'status-1'
+    if (state === 4) return 'status-4'
+    return 'status-default'
+  }
+
   return (
-    <div style={styles.appContainer}>
-      <header style={styles.header}>
-        <h1 style={styles.headerTitle}>블록체인 안전 마켓</h1>
-        <div style={styles.walletInfo}>
+    <div className="app-container">
+      {/* 네비게이션 바 */}
+      <nav className="navbar">
+        <div className="logo">BlockMarket.</div>
+        <div className={`wallet-badge ${account ? '' : 'disconnected'}`}>
+          <span className="dot">{account ? '🟢' : '🔴'}</span>
           {account
-            ? `🟢 ${account.substring(0, 6)}...${account.substring(38)}`
-            : '🔴 지갑 미연결'}
+            ? `${account.substring(0, 6)}...${account.substring(38)}`
+            : 'Wallet Disconnected'}
         </div>
+      </nav>
+
+      {/* 메인 히어로 섹션 */}
+      <header className="hero-section">
+        <h1 className="hero-title">Decentralized Escrow</h1>
+        <p className="hero-subtitle">
+          스마트 컨트랙트 기반의 가장 안전한 P2P 중고 마켓플레이스
+        </p>
       </header>
 
-      <main style={styles.mainContent}>
+      {/* 상품 그리드 */}
+      <main className="product-grid">
         {products.map((product) => (
-          <div key={product.id} style={styles.productCard}>
-            <div style={styles.productImage}>🖼️</div>
-            <div style={styles.productInfo}>
-              <h3 style={styles.productName}>
-                {product.name} (ID: {product.id})
-              </h3>
-              <p style={styles.productPrice}>{product.price} ETH</p>
-              <div style={styles.statusBadge(product.state)}>
-                {STATUS_LABELS[product.state]}
-              </div>
+          <div key={product.id} className="glass-card">
+            {/* 상품 더미 이미지 영역 (IPFS 구조 포함) */}
+            <div className="card-image-wrapper">
+              <img
+                src={`https://picsum.photos/seed/${product.id}/400/300`}
+                alt={product.name}
+                onError={(e) => {
+                  e.target.src = 'https://picsum.photos/400/300'
+                }}
+              />
             </div>
 
-            <div style={styles.actionButtons}>
-              {/* 내 상품일 때 (판매자 뷰) */}
-              {account === product.seller && product.state === 0 && (
-                <>
-                  <button
-                    style={styles.editBtn}
-                    onClick={() => openEditModal(product)}
-                  >
-                    수정
-                  </button>
-                  <button
-                    style={styles.deleteBtn}
-                    onClick={() => handleDelete(product.id)}
-                  >
-                    삭제
-                  </button>
-                </>
-              )}
-              {/* 내 상품인데 예치 중일 때 (자동 확정 버튼 노출) */}
-              {account === product.seller && product.state === 1 && (
-                <button
-                  style={styles.autoBtn}
-                  onClick={() => handleAutoConfirm(product.id)}
+            <div className="card-content">
+              <div className="card-header">
+                <div>
+                  <h3 className="product-name">{product.name}</h3>
+                  <div className="product-id">Token ID: #{product.id}</div>
+                </div>
+                <div
+                  className={`status-badge ${getStatusClass(product.state)}`}
                 >
-                  대금 자동 청구
-                </button>
-              )}
+                  {STATUS_LABELS[product.state]}
+                </div>
+              </div>
 
-              {/* 남의 상품일 때 (구매자 뷰) */}
-              {account !== product.seller && product.state === 0 && (
-                <button
-                  style={styles.buyBtn}
-                  onClick={() => handleDeposit(product.id, product.price)}
-                >
-                  안전결제 예치
-                </button>
-              )}
-              {/* 내가 구매자이고 예치 완료 상태일 때 */}
-              {account === product.buyer && product.state === 1 && (
-                <>
+              <div className="product-price">{product.price} ETH</div>
+
+              <div className="card-actions">
+                {account === product.seller && product.state === 0 && (
+                  <>
+                    <button
+                      className="btn btn-ghost"
+                      onClick={() => openEditModal(product)}
+                    >
+                      수정
+                    </button>
+                    <button
+                      className="btn btn-danger"
+                      onClick={() => handleDelete(product.id)}
+                    >
+                      삭제
+                    </button>
+                  </>
+                )}
+                {account === product.seller && product.state === 1 && (
                   <button
-                    style={styles.confirmBtn}
-                    onClick={() => handleConfirm(product.id)}
+                    className="btn btn-secondary"
+                    onClick={() => handleAutoConfirm(product.id)}
                   >
-                    구매 확정
+                    대금 자동 청구
                   </button>
+                )}
+                {account !== product.seller && product.state === 0 && (
                   <button
-                    style={styles.disputeBtn}
-                    onClick={() => handleDispute(product.id)}
+                    className="btn btn-primary"
+                    onClick={() => handleDeposit(product.id, product.price)}
                   >
-                    이의 제기
+                    안전결제 예치
                   </button>
-                </>
-              )}
+                )}
+                {account === product.buyer && product.state === 1 && (
+                  <>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => handleConfirm(product.id)}
+                    >
+                      구매 확정
+                    </button>
+                    <button
+                      className="btn btn-danger"
+                      onClick={() => handleDispute(product.id)}
+                    >
+                      이의 제기
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         ))}
       </main>
 
       {/* 등록 플로팅 버튼 */}
-      <button style={styles.fab} onClick={() => setIsModalOpen(true)}>
+      <button className="fab" onClick={() => setIsModalOpen(true)}>
         +
       </button>
 
       {/* 모달 창 */}
       {isModalOpen && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modalContent}>
-            <div style={styles.modalHeader}>
-              <h2>{editingId ? '상품 수정' : '내 물건 팔기'}</h2>
-              <button style={styles.closeBtn} onClick={closeModal}>
+        <div className="modal-overlay" onClick={closeModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>{editingId ? '상품 수정하기' : '새 상품 등록'}</h2>
+              <button className="close-btn" onClick={closeModal}>
                 ✕
               </button>
             </div>
 
             <form onSubmit={handleSubmit}>
-              <div style={styles.inputGroup}>
-                <label style={styles.label}>이미지 업로드 (IPFS 연동용)</label>
+              <div className="input-group">
+                <label>이미지 파일 (IPFS 연동)</label>
                 <input
                   type="file"
                   onChange={(e) =>
@@ -629,33 +654,36 @@ export default function App() {
                   }
                 />
               </div>
-              <div style={styles.inputGroup}>
-                <label style={styles.label}>상품명 (메타데이터용)</label>
+              <div className="input-group">
+                <label>상품명</label>
                 <input
-                  style={styles.input}
-                  placeholder="상품명"
+                  placeholder="무엇을 판매하시나요?"
                   value={formData.name}
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })
                   }
                 />
               </div>
-              <div style={styles.inputGroup}>
-                <label style={styles.label}>가격 설정 (ETH)</label>
+              <div className="input-group">
+                <label>판매 가격 (ETH)</label>
                 <input
-                  style={styles.input}
                   type="number"
                   step="0.0001"
-                  placeholder="예: 0.05"
+                  placeholder="0.00 ETH"
                   value={formData.price}
                   onChange={(e) =>
                     setFormData({ ...formData, price: e.target.value })
                   }
                 />
               </div>
-
-              <button type="submit" style={styles.submitBtn}>
-                {editingId ? '수정 완료하기' : '스마트 컨트랙트에 등록하기'}
+              <button
+                type="submit"
+                className="btn btn-primary"
+                style={{ width: '100%', padding: '16px', marginTop: '10px' }}
+              >
+                {editingId
+                  ? '블록체인에 수정 사항 배포'
+                  : '스마트 컨트랙트 등록'}
               </button>
             </form>
           </div>
@@ -663,222 +691,4 @@ export default function App() {
       )}
     </div>
   )
-}
-
-const styles = {
-  appContainer: {
-    maxWidth: '500px',
-    margin: '0 auto',
-    minHeight: '100vh',
-    backgroundColor: '#f5f6f8',
-    position: 'relative',
-    boxShadow: '0 0 20px rgba(0,0,0,0.05)',
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '15px 20px',
-    backgroundColor: '#ffffff',
-    borderBottom: '1px solid #ebebeb',
-    position: 'sticky',
-    top: 0,
-    zIndex: 10,
-  },
-  headerTitle: {
-    margin: 0,
-    fontSize: '20px',
-    color: '#ff6f0f',
-    fontWeight: 'bold',
-  },
-  walletInfo: {
-    fontSize: '12px',
-    color: '#666',
-    backgroundColor: '#f0f0f0',
-    padding: '5px 10px',
-    borderRadius: '15px',
-  },
-  mainContent: { padding: '15px' },
-  productCard: {
-    display: 'flex',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    padding: '15px',
-    borderRadius: '12px',
-    marginBottom: '15px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-  },
-  productImage: {
-    width: '80px',
-    height: '80px',
-    backgroundColor: '#e9ecef',
-    borderRadius: '10px',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    fontSize: '30px',
-    marginRight: '15px',
-  },
-  productInfo: { flex: 1 },
-  productName: { margin: '0 0 5px 0', fontSize: '16px', color: '#333' },
-  productPrice: {
-    margin: '0 0 8px 0',
-    fontSize: '15px',
-    fontWeight: 'bold',
-    color: '#212529',
-  },
-  statusBadge: (state) => ({
-    display: 'inline-block',
-    padding: '4px 8px',
-    borderRadius: '4px',
-    fontSize: '11px',
-    fontWeight: 'bold',
-    backgroundColor:
-      state === 0
-        ? '#e6f3e6'
-        : state === 1
-          ? '#fff4e6'
-          : state === 4
-            ? '#ffe3e3'
-            : '#f1f3f5',
-    color:
-      state === 0
-        ? '#2b8a3e'
-        : state === 1
-          ? '#e67700'
-          : state === 4
-            ? '#e03131'
-            : '#868e96',
-  }),
-  actionButtons: { display: 'flex', flexDirection: 'column', gap: '8px' },
-  buyBtn: {
-    padding: '8px 12px',
-    backgroundColor: '#ff6f0f',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-  },
-  confirmBtn: {
-    padding: '8px 12px',
-    backgroundColor: '#2b8a3e',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-  },
-  editBtn: {
-    padding: '8px 12px',
-    backgroundColor: '#4dabf7',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-  },
-  deleteBtn: {
-    padding: '8px 12px',
-    backgroundColor: '#868e96',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-  },
-  autoBtn: {
-    padding: '8px 12px',
-    backgroundColor: '#748ffc',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-  },
-  disputeBtn: {
-    padding: '8px 12px',
-    backgroundColor: '#fa5252',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-  },
-  fab: {
-    position: 'absolute',
-    bottom: '30px',
-    right: '20px',
-    width: '60px',
-    height: '60px',
-    backgroundColor: '#ff6f0f',
-    color: 'white',
-    fontSize: '35px',
-    border: 'none',
-    borderRadius: '50%',
-    boxShadow: '0 4px 12px rgba(255, 111, 15, 0.4)',
-    cursor: 'pointer',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 20,
-  },
-  modalOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '100%',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'flex-end',
-    zIndex: 30,
-  },
-  modalContent: {
-    width: '100%',
-    maxWidth: '500px',
-    backgroundColor: 'white',
-    borderTopLeftRadius: '20px',
-    borderTopRightRadius: '20px',
-    padding: '25px',
-    boxSizing: 'border-box',
-  },
-  modalHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '20px',
-  },
-  closeBtn: {
-    background: 'none',
-    border: 'none',
-    fontSize: '20px',
-    cursor: 'pointer',
-    color: '#888',
-  },
-  inputGroup: { marginBottom: '15px' },
-  label: {
-    display: 'block',
-    marginBottom: '8px',
-    fontSize: '14px',
-    fontWeight: 'bold',
-    color: '#555',
-  },
-  input: {
-    width: '100%',
-    padding: '12px',
-    border: '1px solid #ddd',
-    borderRadius: '8px',
-    fontSize: '16px',
-    boxSizing: 'border-box',
-  },
-  submitBtn: {
-    width: '100%',
-    padding: '15px',
-    backgroundColor: '#ff6f0f',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    marginTop: '10px',
-  },
 }
